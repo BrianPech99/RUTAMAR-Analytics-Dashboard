@@ -1,0 +1,25 @@
+# Node.js
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+
+# Python
+backend/.venv/
+backend/__pycache__/
+backend/**/*.py[cod]
+backend/.pytest_cache/
+
+# Environment and secrets
+backend/.env
+.env
+
+
+
+# Editor, OS and temporary files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+*.tmp
+*.temp
