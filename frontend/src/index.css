@@ -3,3 +3,16 @@
 :root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #102a43; background: #f7fafc; }
 body { margin: 0; min-width: 320px; min-height: 100vh; }
 * { box-sizing: border-box; }
+
+.leaflet-tooltip.route-stop-label {
+  min-width: 145px;
+  padding: 7px 12px 7px 7px;
+  border: 0;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.24);
+  color: #334155;
+  font-size: 13px;
+}
+
+.leaflet-tooltip.route-stop-label::before { border-right-color: rgba(255, 255, 255, 0.96); }
