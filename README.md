@@ -78,3 +78,12 @@ npm run dev
 ## Variables de entorno
 
 Se incluyen `frontend/.env.example` y `backend/.env.example` como plantilla. Copia cada uno a `.env` cuando haga falta configurar valores locales; esos archivos se ignoran en Git.
+
+## Despliegue en Railway
+
+El repositorio está preparado para dos servicios Railway desde el mismo repositorio privado:
+
+1. **API**: establece `backend` como *Root Directory*. Railway detectará `backend/Dockerfile`. Genera un dominio público y usa `/api/health` como Healthcheck Path.
+2. **Frontend**: establece `frontend` como *Root Directory*. Railway detectará `frontend/Dockerfile`. En sus variables de compilación configura `VITE_API_URL` con la URL del servicio API seguida de `/api`, por ejemplo `https://rutamar-api.up.railway.app/api`.
+
+El CSV se copia dentro de la imagen del backend. Al ser un repositorio privado, Railway puede acceder al archivo durante el despliegue.
