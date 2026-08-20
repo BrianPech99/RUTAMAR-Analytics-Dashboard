@@ -9,4 +9,4 @@ export const getDashboard = (params) => api.get('/dashboard', { params }).then((
   }
   return data
 })
-export const getRouteMap = () => api.get('/map/routes').then(({ data }) => data)
+export const getRouteMap = (params) => api.get('/map/routes', { params }).then(({ data }) => data)

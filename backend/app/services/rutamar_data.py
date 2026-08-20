@@ -14,7 +14,13 @@ ROUTE_MAP = {
     "Ruta 2 (con Playa Caracol)": "Ruta 2",
 }
 HOTEL_ZONE = {"Paradero Playa Las Perlas", "Paradero Playa Langosta", "Paradero Playa Tortugas", "Paradero Forum"}
-NEW_STOPS = {"Paradero Chedraui Rancho Viejo", "Paradero Oxxo Rancho Nuevo", "Paradero Bodega Aurrera Corales"}
+NEW_STOPS = {
+    "Base Rancho Viejo",
+    "Paradero Chedraui Rancho Viejo",
+    "Paradero Oxxo Rancho Nuevo",
+    "Paradero Bodega Aurrera Corales",
+    "Paradero Pizza Casa Jaguar",
+}
 
 
 def _read_passengers() -> pd.DataFrame:
@@ -66,6 +72,42 @@ def filter_data(route: str | None = None, period: str | None = None) -> pd.DataF
     return data
 
 
+def time_options(data: pd.DataFrame, timeframe: str | None) -> list[dict]:
+    if not timeframe or timeframe == "Todos":
+        return []
+    if timeframe == "Semana":
+        weeks = data["Fecha"].dt.to_period("W-SUN")
+        return [
+            {"value": str(period.start_time.date()), "label": f"Semana del {period.start_time.strftime('%d %b %Y')}"}
+            for period in sorted(weeks.dropna().unique(), reverse=True)
+        ]
+    if timeframe == "Mes":
+        months = data["Fecha"].dt.to_period("M")
+        return [
+            {"value": str(period), "label": period.start_time.strftime("%B %Y").capitalize()}
+            for period in sorted(months.dropna().unique(), reverse=True)
+        ]
+    if timeframe == "Edición":
+        editions = data["Edicion"].dropna().astype(str).str.strip()
+        return [{"value": edition, "label": edition} for edition in sorted(editions[editions.ne("")].unique(), reverse=True)]
+    return []
+
+
+def filter_time(data: pd.DataFrame, timeframe: str | None = None, time_value: str | None = None) -> pd.DataFrame:
+    if not timeframe or timeframe == "Todos" or not time_value:
+        return data
+    if timeframe == "Semana":
+        week_start = pd.to_datetime(time_value, errors="coerce")
+        if pd.isna(week_start):
+            return data.iloc[0:0]
+        return data[data["Fecha"].dt.to_period("W-SUN").eq(week_start.to_period("W-SUN"))]
+    if timeframe == "Mes":
+        return data[data["Fecha"].dt.to_period("M").astype(str).eq(time_value)]
+    if timeframe == "Edición":
+        return data[data["Edicion"].astype(str).str.strip().eq(time_value)]
+    return data
+
+
 def summary(data: pd.DataFrame) -> dict:
     active_days = max(data["Fecha"].nunique(), 1)
     total_boardings = int(data["Ascensos (Suben)"].sum())
@@ -79,6 +121,10 @@ def summary(data: pd.DataFrame) -> dict:
         "corridas": int(data["trip_id"].nunique()),
         "puntualidad": round(float(on_time.mean() * 100), 1) if not on_time.empty else 0,
         "desviacion_promedio": round(float(data["minutos_desviacion"].mean()), 1) if data["minutos_desviacion"].notna().any() else 0,
+        # Indicador observable con los registros disponibles: corridas que
+        # efectivamente transportaron al menos un pasajero.
+        "usabilidad_ruta": round(float(data.groupby("trip_id")["Ascensos (Suben)"].sum().gt(0).mean() * 100), 1) if not data.empty else 0,
+        "deficiencia_horarios": round(float((~on_time).mean() * 100), 1) if not on_time.empty else 0,
     }
 
 
@@ -109,8 +155,32 @@ def occupancy(data: pd.DataFrame) -> list[dict]:
     ordered = data.sort_values(["trip_id", "real", "programada"]).copy()
     change = ordered["Ascensos (Suben)"] - ordered["Descensos (Bajan)"]
     ordered["ocupacion"] = change.groupby(ordered["trip_id"]).cumsum()
-    result = ordered.groupby("Paradero", as_index=False)["ocupacion"].max().sort_values("ocupacion", ascending=False).head(10)
+    # La ocupación se calcula para toda la corrida y después se reporta sólo en
+    # paraderos urbanos. Así se conserva la carga real al regresar de la playa.
+    urban_stops = ~ordered["Paradero"].str.contains("playa", case=False, na=False)
+    urban_stops &= ~ordered["Paradero"].isin(HOTEL_ZONE)
+    result = ordered.loc[urban_stops].groupby("Paradero", as_index=False)["ocupacion"].max()
+    result = result.sort_values("ocupacion", ascending=False).head(10)
     return result.rename(columns={"Paradero": "paradero"}).to_dict("records")
+
+
+def user_profiles(data: pd.DataFrame) -> list[dict]:
+    profiles = [
+        ("Mañana", "Traslado laboral y escolar", 5, 9),
+        ("Mediodía", "Trámites y servicios", 10, 15),
+        ("Tarde", "Regreso laboral y escolar", 16, 20),
+        ("Noche / madrugada", "Otros desplazamientos", 21, 4),
+    ]
+    total = max(int(data["Ascensos (Suben)"].sum()), 1)
+    result = []
+    for horario, perfil, start, end in profiles:
+        if start <= end:
+            rows = data[data["hora"].between(start, end)]
+        else:
+            rows = data[(data["hora"] >= start) | (data["hora"] <= end)]
+        boardings = int(rows["Ascensos (Suben)"].sum())
+        result.append({"horario": horario, "perfil": perfil, "ascensos": boardings, "porcentaje": round(boardings / total * 100, 1)})
+    return result
 
 
 def travel_times(data: pd.DataFrame) -> list[dict]:
