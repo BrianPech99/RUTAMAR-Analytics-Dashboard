@@ -7,13 +7,14 @@ import pandas as pd
 
 DATA_FILE = Path(__file__).resolve().parents[2] / "data" / "Reporte-RutaMar.csv"
 FARE_REFERENCE_MXN = 12
+MONTH_NAMES_ES = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre")
 ROUTE_MAP = {
     "Ruta 1": "Ruta 1",
     "Ruta 1 (Rancho Viejo)": "Ruta 1",
     "Ruta 2": "Ruta 2",
     "Ruta 2 (con Playa Caracol)": "Ruta 2",
 }
-HOTEL_ZONE = {"Paradero Playa Las Perlas", "Paradero Playa Langosta", "Paradero Playa Tortugas", "Paradero Forum"}
+HOTEL_ZONE = {"Paradero Playa Las Perlas", "Paradero Playa Langosta", "Paradero Playa Tortugas", "Paradero Forum", "Base Forum"}
 NEW_STOPS = {
     "Base Rancho Viejo",
     "Paradero Chedraui Rancho Viejo",
@@ -39,7 +40,10 @@ def _read_passengers() -> pd.DataFrame:
         record["trip_sequence"] = trip_number
         records.append(record)
     frame = pd.DataFrame(records)
-    frame["Fecha"] = pd.to_datetime(frame["Fecha"], format="%d/%m/%Y", errors="coerce")
+    # El reporte actual usa ISO (AAAA-MM-DD), mientras que ediciones anteriores
+    # pueden usar DD/MM/AAAA. Pandas interpreta ambos formatos sin perder
+    # compatibilidad con el histórico.
+    frame["Fecha"] = pd.to_datetime(frame["Fecha"], format="mixed", dayfirst=True, errors="coerce")
     for column in ["Ascensos (Suben)", "Descensos (Bajan)"]:
         frame[column] = pd.to_numeric(frame[column], errors="coerce").fillna(0).astype(int)
     for source, target in [("Hora Programada", "programada"), ("Hora Real de Llegada", "real")]:
@@ -84,7 +88,7 @@ def time_options(data: pd.DataFrame, timeframe: str | None) -> list[dict]:
     if timeframe == "Mes":
         months = data["Fecha"].dt.to_period("M")
         return [
-            {"value": str(period), "label": period.start_time.strftime("%B %Y").capitalize()}
+            {"value": str(period), "label": f"{MONTH_NAMES_ES[period.start_time.month - 1].capitalize()} {period.start_time.year}"}
             for period in sorted(months.dropna().unique(), reverse=True)
         ]
     if timeframe == "Edición":
