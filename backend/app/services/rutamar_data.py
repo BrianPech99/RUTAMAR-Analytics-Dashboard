@@ -69,7 +69,13 @@ def passengers() -> pd.DataFrame:
 
 def filter_data(route: str | None = None, period: str | None = None) -> pd.DataFrame:
     data = passengers().copy()
-    if route and route != "Todas":
+    if route == "Ruta 1 (Torito)":
+        data = data[data["ruta_original"] == "Ruta 1"]
+    elif route == "Ruta 1 (Rancho Viejo)":
+        data = data[data["ruta_original"] == "Ruta 1 (Rancho Viejo)"]
+    elif route == "Ruta 2 (con Playa Caracol)":
+        data = data[data["ruta_principal"] == "Ruta 2"]
+    elif route and route != "Todas":
         data = data[data["ruta_principal"] == route]
     if period and period != "Todos":
         data = data[data["periodo_ruta_1"] == period]
@@ -122,6 +128,7 @@ def summary(data: pd.DataFrame) -> dict:
         "ahorro_estimado": total_boardings * FARE_REFERENCE_MXN,
         "promedio_diario": round(total_boardings / active_days, 1),
         "dias_operados": int(data["Fecha"].nunique()),
+        "ultima_fecha_registrada": data["Fecha"].max().strftime("%d/%m/%Y") if data["Fecha"].notna().any() else "",
         "corridas": int(data["trip_id"].nunique()),
         "puntualidad": round(float(on_time.mean() * 100), 1) if not on_time.empty else 0,
         "desviacion_promedio": round(float(data["minutos_desviacion"].mean()), 1) if data["minutos_desviacion"].notna().any() else 0,

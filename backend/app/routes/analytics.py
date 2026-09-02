@@ -43,4 +43,4 @@ def dashboard(
 
 @router.get("/filters")
 def filters() -> dict:
-    return {"rutas": ["Ruta 1", "Ruta 2"], "periodos": ["Torito", "Rancho Viejo"]}
+    return {"rutas": ["Ruta 1 (Torito)", "Ruta 1 (Rancho Viejo)", "Ruta 2 (con Playa Caracol)"], "periodos": ["Torito", "Rancho Viejo"]}
