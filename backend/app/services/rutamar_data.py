@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 DATA_FILE = Path(__file__).resolve().parents[2] / "data" / "Reporte-RutaMar.csv"
+CAPTURE_FILE = Path(__file__).resolve().parents[2] / "data" / "Capturas-RutaMar.csv"
 FARE_REFERENCE_MXN = 12
 MONTH_NAMES_ES = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre")
 ROUTE_MAP = {
@@ -40,6 +41,9 @@ def _read_passengers() -> pd.DataFrame:
         record["trip_sequence"] = trip_number
         records.append(record)
     frame = pd.DataFrame(records)
+    if CAPTURE_FILE.exists():
+        captures = pd.read_csv(CAPTURE_FILE, dtype=str, keep_default_na=False)
+        frame = pd.concat([frame, captures.reindex(columns=headers, fill_value="")], ignore_index=True)
     # El reporte actual usa ISO (AAAA-MM-DD), mientras que ediciones anteriores
     # pueden usar DD/MM/AAAA. Pandas interpreta ambos formatos sin perder
     # compatibilidad con el histórico.
@@ -65,6 +69,32 @@ def _read_passengers() -> pd.DataFrame:
 @lru_cache(maxsize=1)
 def passengers() -> pd.DataFrame:
     return _read_passengers()
+
+
+def capture_options() -> list[dict]:
+    data = passengers()
+    configurations = [
+        ("ruta-1", "Ruta 1", "Ruta 1 (Rancho Viejo)"),
+        ("ruta-2", "Ruta 2", "Ruta 2 (con Playa Caracol)"),
+    ]
+    routes = []
+    for route_id, label, source_route in configurations:
+        route_rows = data[data["ruta_original"].eq(source_route)]
+        directions = {}
+        for direction_key, direction_label in [("ida", "Ida"), ("regreso", "Regreso")]:
+            direction_rows = route_rows[route_rows["Sentido"].eq(direction_label)]
+            stops = []
+            for stop, group in direction_rows.groupby("Paradero", sort=False):
+                schedules = sorted({str(value)[:5] for value in group["Hora Programada"].dropna() if str(value) and str(value) != "nan"})
+                first_schedule = schedules[0] if schedules else "99:99"
+                stops.append({"nombre": stop, "horarios": schedules, "orden": first_schedule})
+            stops.sort(key=lambda item: item["orden"])
+            for stop in stops:
+                stop.pop("orden")
+            directions[direction_key] = stops
+        units = sorted(route_rows["Unidad"].dropna().astype(str).unique().tolist())
+        routes.append({"id": route_id, "nombre": label, "ruta_csv": source_route, "unidades": units, "sentidos": directions})
+    return routes
 
 
 def filter_data(route: str | None = None, period: str | None = None) -> pd.DataFrame:
@@ -146,8 +176,38 @@ def economic_savings(data: pd.DataFrame) -> list[dict]:
 
 
 def trend(data: pd.DataFrame) -> list[dict]:
+    if "Edicion" in data and data["Edicion"].fillna("").astype(str).str.strip().ne("").any():
+        result = data.groupby("Edicion", as_index=False, sort=False)["Ascensos (Suben)"].sum()
+        return [{"fecha": str(row.Edicion), "ascensos": int(row._2)} for row in result.itertuples()]
     result = data.groupby("Fecha", as_index=False)["Ascensos (Suben)"].sum()
     return [{"fecha": row.Fecha.strftime("%d %b"), "ascensos": int(row._2)} for row in result.itertuples()]
+
+
+def route_stop_movements(data: pd.DataFrame) -> list[dict]:
+    grouped = data.groupby(["ruta_original", "Paradero"], as_index=False).agg(
+        ascensos=("Ascensos (Suben)", "sum"), descensos=("Descensos (Bajan)", "sum")
+    )
+    grouped = grouped.sort_values(["ruta_original", "Paradero"])
+    return [{"ruta": row.ruta_original, "paradero": row.Paradero, "ascensos": int(row.ascensos), "descensos": int(row.descensos)} for row in grouped.itertuples()]
+
+
+def punctuality_by_hour(data: pd.DataFrame) -> list[dict]:
+    rows = data.dropna(subset=["minutos_desviacion", "hora"])
+    result = rows.groupby("hora", as_index=False)["minutos_desviacion"].mean()
+    return [{"hora": f"{int(row.hora):02d}:00", "desviacion": round(float(row.minutos_desviacion), 1)} for row in result.itertuples()]
+
+
+def activation_points(data: pd.DataFrame) -> dict:
+    usable = data[data["Hora Programada"].astype(str).str.strip().ne("")].copy()
+    result = {}
+    for column, key in [("Ascensos (Suben)", "ascensos"), ("Descensos (Bajan)", "descensos")]:
+        grouped = usable.groupby(["Paradero", "Hora Programada"], as_index=False)[column].sum().rename(columns={column: "volumen"})
+        grouped = grouped.sort_values("volumen", ascending=False).head(5)
+        result[key] = [
+            {"lugar": row["Paradero"], "hora": str(row["Hora Programada"])[:5], "volumen": int(row["volumen"])}
+            for row in grouped.to_dict("records")
+        ]
+    return result
 
 
 def hourly_demand(data: pd.DataFrame) -> list[dict]:

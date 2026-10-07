@@ -13,6 +13,9 @@ from app.services.rutamar_data import (
     trend,
     time_options,
     user_profiles,
+    route_stop_movements,
+    punctuality_by_hour,
+    activation_points,
 )
 
 router = APIRouter(tags=["analytics"])
@@ -31,6 +34,9 @@ def dashboard(
         "summary": summary(data),
         "ahorro_economico": economic_savings(data),
         "tendencia": trend(data),
+        "movimiento_rutas": route_stop_movements(data),
+        "puntualidad_horaria": punctuality_by_hour(data),
+        "puntos_activacion": activation_points(data),
         "demanda_horaria": hourly_demand(data),
         "paraderos": stop_summary(data),
         "ocupacion": occupancy(data),
