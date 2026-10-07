@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: rutamar-api
+    runtime: docker
+    rootDir: backend
+    healthCheckPath: /api/health
+
+  - type: web
+    name: rutamar-dashboard
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://rutamar-api.onrender.com/api
