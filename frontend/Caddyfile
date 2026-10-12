@@ -1,4 +1,4 @@
-:80 {
+:{$PORT:8080} {
   handle /runtime-config.js {
     header Content-Type application/javascript
     respond `window.__RUTAMAR_CONFIG__ = { apiUrl: "{$VITE_API_URL}" };`

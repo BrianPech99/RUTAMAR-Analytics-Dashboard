@@ -1,6 +1,7 @@
+import os
+
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-import os
 
 from app.routes.health import router as health_router
 from app.routes.analytics import router as analytics_router
@@ -18,7 +19,7 @@ allowed_origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", *allowed_origins],
-    allow_origin_regex=r"https://[a-z0-9-]+\.onrender\.com|https://.*\.up\.railway\.app",
+    allow_origin_regex=r"https://.*\.up\.railway\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
