@@ -1,7 +1,6 @@
 import axios from 'axios'
 
-const runtimeApiUrl = window.__RUTAMAR_CONFIG__?.apiUrl
-const api = axios.create({ baseURL: runtimeApiUrl || import.meta.env.VITE_API_URL || 'http://localhost:8000/api' })
+const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api' })
 
 export const getDashboard = (params) => api.get('/dashboard', { params }).then(({ data }) => {
   if (!data || typeof data !== 'object' || !data.summary) {

@@ -102,12 +102,14 @@ Puedes nombrar el servicio `backend` para usar la referencia de variable de los 
 
    Si usaste otro nombre, sustituye `backend` por el nombre exacto del servicio de API.
 
-5. Despliega el dashboard. El contenedor usa el puerto `PORT` que Railway le asigna y sirve la configuración de API en tiempo de ejecución.
+5. Aplica los cambios y despliega el dashboard. El Dockerfile recibe `VITE_API_URL` como argumento de compilación para incluir la URL pública de la API en el frontend. El contenedor usa el puerto `PORT` que Railway le asigna.
 
 ### 3. Comprobar
 
 - Abre `https://<dominio-de-la-api>/api/health`; debe responder `{"status":"ok","service":"RUTAMAR API"}`.
 - Abre el dominio público del dashboard desde el teléfono u otro dispositivo.
 - La documentación de la API está en `https://<dominio-de-la-api>/docs`.
+
+Si cambias `VITE_API_URL`, vuelve a desplegar el frontend para recompilar los archivos estáticos con el nuevo valor.
 
 El CORS del backend acepta los dominios `*.up.railway.app`. Si usas un dominio personalizado para el frontend, agrega su origen completo (sin ruta final) a `CORS_ALLOW_ORIGINS` en las variables del servicio `backend`, por ejemplo `https://dashboard.ejemplo.com`.
